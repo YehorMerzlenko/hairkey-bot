@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "module": "ESNext",
+    "target": "ESNext",
+    "moduleResolution": "node",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "paths": {
+      "*": [
+        "node_modules/@types",
+        "./node-telegram-bot-api.d.ts"
+      ]
+    }
+  },
+  "ts-node": {
+    "esm": true,
+     "moduleResolution": "nodenext",
+     "experimentalSpecifierResolution": "node",
+  },
+  "include": [
+    "*.ts",
+    "**/*.ts"
+  ]
+}
