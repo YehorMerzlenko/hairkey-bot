@@ -1,86 +1,135 @@
 import TelegramBot from 'node-telegram-bot-api';
 import * as dotenv from 'dotenv';
-import { GoogleCalendar } from '../calendar';
-
+import { GoogleCalendar, listEvents } from '../calendar';
 
 dotenv.config();
 
-const token = process.env.TELEGRAM_BOT_TOKEN;
+export interface Slot {
+    eventId: string;
+    start: string;
+    end: string;
+}
 
+const token = process.env.TELEGRAM_BOT_TOKEN;
 const calendarId = process.env.CALENDAR_ID;
 
 if (!calendarId) {
     throw new Error('CALENDAR_ID is not specified in the .env file');
 }
 
-
 if (!token) {
     throw new Error('TELEGRAM_BOT_TOKEN is not specified in the .env file');
-  }
+}
 
 const bot = new TelegramBot(token, { polling: true });
+const slots = new Map<number, Slot>();
 
+const sendWelcomeMessage = (chatId: number) => {
+    const welcomeMessage = `
+Йо, вітаю!
 
-bot.onText(/\/start/, (msg) => {
-    bot.sendMessage(msg.chat.id, 'Вітаємо! Оберіть зручний для вас час для стрижки:', {
+Ось шо робити треба:
+1. Натисніть на кнопку "Обрати час для стрижки" та оберіть час для стрижки`;
+    bot.sendMessage(chatId, welcomeMessage, {
         reply_markup: {
-            inline_keyboard: [
-                [
-                    { text: '13:00', callback_data: '13:00' },
-                ],
-                [
-                    { text: '14:00', callback_data: '14:00' },
-                ],
-                [
-                    { text: '15:00', callback_data: '15:00' },
-                ],
-                [
-                    { text: '16:00', callback_data: '16:00' },
-                ],
+            keyboard: [
+                [{ text: 'Обрати час для стрижки' }]
             ],
+            resize_keyboard: true,
+            one_time_keyboard: true
+        }
+    });
+};
+
+const handleChooseTime = async (chatId: number) => {
+    const events = await listEvents(calendarId);
+
+    if (events.length === 0) {
+        bot.sendMessage(chatId, 'Немає доступного часу для запису.');
+        return;
+    }
+
+    const availableTimes = events.map((event, index) => {
+        if (!event.id || !event.start?.dateTime || !event.end?.dateTime) {
+            return null;
+        }
+
+        slots.set(index, {
+            eventId: event.id,
+            start: event.start.dateTime,
+            end: event.end.dateTime
+        });
+
+        const date = new Date(event.start.dateTime).toLocaleDateString('uk-UA', { weekday: 'short', month: 'long', day: 'numeric' });
+        const startTime = new Date(event.start.dateTime).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+
+        return {
+            text: `${date}, ${startTime}`,
+            callback_data: `${index}`
+        };
+    }).filter(time => time !== null);
+
+    bot.sendMessage(chatId, 'Коли тобі зручно?', {
+        reply_markup: {
+            inline_keyboard: availableTimes.map(time => [time!]),
         },
     });
+};
+
+bot.onText(/\/start/, (msg) => {
+    const chatId = msg.chat.id;
+    sendWelcomeMessage(chatId);
+});
+
+bot.onText(/Обрати час для стрижки/, async (msg) => {
+    const chatId = msg.chat.id;
+    await handleChooseTime(chatId);
 });
 
 bot.on('callback_query', async (query) => {
     const chatId = query.message?.chat.id;
-    const selectedTime = query.data;
+    const messageId = query.message?.message_id;
+    const index = parseInt(query.data!);
 
+    const slot = slots.get(index);
 
-    bot.sendMessage(chatId!, `Ви обрали ${selectedTime}. Зараз додамо це до календаря.`);
+    if (!slot) {
+        bot.sendMessage(chatId!, 'Невірний вибір. Спробуйте знову.');
+        return;
+    }
 
-    const event = {
-        summary: 'Стрижка',
+    const { eventId, start, end } = slot;
+    const username = query.from.username || query.from.first_name;
+
+    const updatedEvent = {
+        summary: `записаний ${username}`,
         start: {
-            dateTime: `2024-08-03T${selectedTime}:00+03:00`,
+            dateTime: start,
             timeZone: 'Europe/Kyiv',
         },
         end: {
-            dateTime: `2024-08-03T${selectedTime}:30+03:00`,
+            dateTime: end,
             timeZone: 'Europe/Kyiv',
         },
+        colorId: '2',
     };
 
-
     try {
-        const response = await GoogleCalendar.events.insert({
-          calendarId,
-          requestBody: event,
+        const response = await GoogleCalendar.events.patch({
+            calendarId,
+            eventId,
+            requestBody: updatedEvent,
         });
-        bot.sendMessage(chatId!, `Подія створена: ${response.data.htmlLink}`);
-      } catch (err) {
-        console.error('Error creating event:', err);
-        bot.sendMessage(chatId!, 'Виникла помилка при створенні події.');
-      }
 
+        const startDate = new Date(response.data.start?.dateTime!);
+        const startTimeString = startDate.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+        const dateString = startDate.toLocaleDateString('uk-UA', { weekday: 'long', month: 'long', day: 'numeric' });
 
-});
+        await bot.editMessageText(`Записаний на ${dateString} ${startTimeString}`, { chat_id: chatId, message_id: messageId });
+    } catch (err) {
+        console.error('Error updating event:', err);
+        bot.sendMessage(chatId!, 'Виникла помилка при бронюванні.');
+    }
 
-
-bot.on('message', (msg) => {
-  const chatId = msg.chat.id;
-  if (msg.text) {
-
-    bot.sendMessage(chatId, msg.text);
-  }
+    bot.answerCallbackQuery(query.id);
 });
