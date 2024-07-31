@@ -16,9 +16,11 @@
     "@types/node": "^20.14.11",
     "dotenv": "^16.4.5",
     "google-auth-library": "^9.11.0",
+    "node-schedule": "^2.1.1",
     "node-telegram-bot-api": "^0.66.0"
   },
   "devDependencies": {
+    "@types/node-schedule": "^2.1.7",
     "@types/node-telegram-bot-api": "^0.64.7",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.3"

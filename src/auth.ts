@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const credentialsPath = resolve(__dirname, 'credentials.json');
+const credentialsPath = resolve(__dirname, '../credentials.json');
 const value = readFileSync(credentialsPath, 'utf-8');
 const credentials = JSON.parse(value);
 
