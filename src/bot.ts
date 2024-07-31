@@ -4,7 +4,6 @@ import { GoogleCalendar, listEvents } from './calendar';
 import { scheduleJob } from 'node-schedule';
 import { Slot } from './types';
 
-
 dotenv.config();
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -61,8 +60,8 @@ bot.onText(/Обрати час для стрижки/, async (msg) => {
                 end: event.end.dateTime
             });
 
-            const date = new Date(event.start.dateTime).toLocaleDateString('uk-UA', { weekday: 'short', month: 'long', day: 'numeric' });
-            const startTime = new Date(event.start.dateTime).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+            const date = new Date(event.start.dateTime).toLocaleDateString('uk-UA', { weekday: 'short', month: 'long', day: 'numeric', timeZone: 'Europe/Kyiv' });
+            const startTime = new Date(event.start.dateTime).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Kyiv' });
 
             return {
                 text: `${date}, ${startTime}`,
@@ -117,13 +116,13 @@ bot.on('callback_query', async (query) => {
         });
 
         const startDate = new Date(response.data.start?.dateTime!);
-        const startTimeString = startDate.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
-        const dateString = startDate.toLocaleDateString('uk-UA', { weekday: 'long', month: 'long', day: 'numeric' });
+        const startTimeString = startDate.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Kyiv' });
+        const dateString = startDate.toLocaleDateString('uk-UA', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'Europe/Kyiv' });
 
         await bot.editMessageText(`Записаний на ${dateString} ${startTimeString}`, { chat_id: chatId, message_id: messageId });
 
         const reminderTime = new Date(new Date(start).getTime() - 24 * 60 * 60 * 1000);
-        const timeOnly = new Date(start).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+        const timeOnly = new Date(start).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Kyiv' });
 
         scheduleJob(reminderTime, () => {
             bot.sendMessage(chatId!, `Йо! Завтра стрижка о ${timeOnly}`);

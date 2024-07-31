@@ -3,7 +3,6 @@ import { GoogleAuth } from './auth';
 
 export const GoogleCalendar = new calendar_v3.Calendar({ auth: GoogleAuth });
 
-
 export async function listEvents(calendarId: string) {
     try {
         const res = await GoogleCalendar.events.list({
@@ -13,13 +12,10 @@ export async function listEvents(calendarId: string) {
             singleEvents: true,
             orderBy: 'startTime',
         });
-
         const timeSlots = res.data.items?.filter(event => event.summary?.includes("Стрижка")) || [];
-
         return timeSlots;
     } catch (error) {
         console.error('Error listing events:', error);
         throw error;
     }
 }
-
